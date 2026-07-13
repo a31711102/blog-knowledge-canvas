@@ -1,68 +1,217 @@
 # Blog Knowledge Canvas
 
-WordPressブログの記事を **サイトマップ/REST API から取得 → 無LLM・フロント完結で相関解析 → 無限キャンバスに可視化** し、新記事アイデアを発散・収束させるナレッジベース。
+**A knowledge base that visualizes your blog's content structure and accelerates content strategy — born from a real problem: "I can't see what I've written or what's missing."**
 
-## 特徴（設計判断の根拠）
-- **バックエンド無し / LLM API無し**。ブラウザだけで完結。ホスティングは静的でよい。
-- WP REST API は **CORS標準対応**（実サイトで実測済み）＝プロキシ不要。
-- タグ0・カテゴリ僅少のブログでも、**TF-IDFキーワード相関**が主情報源として機能。
-- **CTA定型文除去**と**アイデアはTF-IDF特徴語基準**（実データ検証で判明した2点を反映）。
-- **データ層(graphology)と描画層(Cytoscape)を分離** ＝ 規模拡大時に片方だけ差し替え可能。
+Fetches all WordPress posts via REST API, analyzes keyword correlations using TF-IDF and Louvain clustering, renders an interactive graph on an infinite canvas, and automatically suggests new article ideas. **No backend. No LLM API. Runs entirely in the browser.**
 
-## 技術スタック
-Vite + React + TypeScript / kuromoji.js（IPADIC・CDN辞書）/ graphology + Louvain + 中心性 /
-Cytoscape.js + fcose / IndexedDB(idb)
+---
 
-## 起動
-```bash
-npm install
-npm run dev      # http://localhost:5173
+## Why I Built This
+
+| Before (Problem) | After (Solved by this tool) |
+|---|---|
+| As posts grew, it became impossible to track what was covered and what was missing | Visualize all post relationships as a graph; identify content gaps instantly |
+| Sending posts to LLM APIs (ChatGPT, etc.) incurs ongoing monthly costs | Zero API cost — TF-IDF analysis runs fully in-browser |
+| Writing posts reactively leads to poor content coverage and weak strategy | Automatically suggests new article ideas from unconnected keyword pairs and sparse clusters |
+| Blogs with few tags or categories had no good analysis options | TF-IDF correlation works as the primary signal even with zero tags |
+
+---
+
+## Demo
+
+> Verified on a live blog: `https://haitou-choco-nikki.com/`
+
 ```
-初回は kuromoji 辞書（数MB）をCDNから取得します。以降はブラウザキャッシュ。
+[Screenshots coming soon]
+```
 
-## 使い方
-1. 上部にブログURL（例: `https://haitou-choco-nikki.com/`）を入れて「解析」。
-2. 相関グラフが描画され、クラスタごとに色分けされる。
-3. ノードをクリック → 右に記事のキーワードと関連記事。
-4. **関連度θ**スライダーでエッジ密度を調整（発散↔収束）。
-5. 右下に**新記事アイデア**（未結合キーワード対 / 手薄クラスタ）。
-6. JSON書出/取込で解析結果を保存・移送（IndexedDBにも自動キャッシュ＝差分更新）。
+---
 
-## 主要パラメータ
-`src/config.ts` … θ初期値・kNN上限・キーワード数・CTA除去マーカー・辞書パス。
+## Features
 
-## ディレクトリ
+**Content Analysis**
+- Fetches all posts automatically via WordPress REST API (no proxy required — CORS is natively supported)
+- Strips HTML and boilerplate CTA text before TF-IDF analysis
+- Japanese tokenization via kuromoji.js (IPADIC), with compound-word merging for proper nouns
+
+**Graph Visualization**
+- Automatic cluster detection and color-coding via Louvain algorithm
+- Real-time edge density control with a correlation threshold (θ) slider
+- Click any node to inspect its keywords and related articles in the side panel
+- Fast, readable layout via fcose
+
+**New Article Idea Generation**
+- Detects "association gaps" — keywords that frequently appear but have never been paired in an article
+- Highlights sparse clusters — topic groups with few articles and room to expand
+- Diversity cap prevents repetitive suggestions of the same keyword
+
+**Data Management**
+- Auto-caching via IndexedDB (incremental updates on re-analysis)
+- Export/import analysis results as JSON for persistence or team sharing
+
+---
+
+## Architecture Decisions
+
+> This section explains *why* each technology was chosen — the reasoning behind the design is as important as the implementation.
+
+**Why no backend?**
+
+WordPress REST API supports CORS natively, which means no proxy server is needed. The entire application can be hosted statically (GitHub Pages, Netlify, Vercel) with zero infrastructure overhead and zero ongoing server cost.
+
+**Why no LLM API?**
+
+For content strategy — determining which topics are *relatively* similar or distant — absolute semantic understanding is unnecessary. TF-IDF + Louvain delivers practical accuracy, verified on real blog data. Eliminating the LLM API removes ongoing cost for both the developer and end user, making the tool freely distributable.
+
+**Why separate the data layer from the rendering layer?**
+
+`graphology` (graph computation) and `Cytoscape.js` (rendering) are intentionally decoupled. This means:
+- If the post count exceeds 5,000 and O(n²) pairwise computation becomes slow → swap in Approximate Nearest Neighbor (ANN) in the data layer only
+- If the node count exceeds 1,000 and rendering lags → swap in Sigma.js (WebGL) in the rendering layer only
+
+Each layer can evolve independently, minimizing the cost of scaling.
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Why |
+|---|---|---|
+| Framework | Vite + React + TypeScript | Type safety, fast builds |
+| Japanese NLP | kuromoji.js (IPADIC, CDN dictionary) | In-browser Japanese morphological analysis |
+| Graph computation | graphology + Louvain + centrality | Decoupled from rendering for scalability |
+| Graph rendering | Cytoscape.js + fcose | High-performance layout for large graphs |
+| Caching | IndexedDB (idb) | Offline support and incremental updates |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm 9+
+
+### Installation
+
+```bash
+git clone https://github.com/<your-username>/blog-knowledge-canvas.git
+cd blog-knowledge-canvas
+npm install
+```
+
+### Start Development Server
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
+
+> **First run**: kuromoji dictionary (a few MB) is fetched from CDN. Subsequent runs use the browser cache and start instantly.
+
+### Production Build
+
+```bash
+npm run build
+npm run preview   # Preview the build locally
+```
+
+The `dist/` folder can be deployed directly to GitHub Pages, Netlify, Vercel, or any static host.
+
+---
+
+## How to Use
+
+### 1. Analyze Your Blog
+
+Enter your WordPress blog URL (e.g., `https://example.com/`) in the top input field and click "Analyze." All posts are fetched and analyzed automatically.
+
+### 2. Read the Graph
+
+- Each node represents one article; edges connect articles with high keyword correlation
+- Articles in the same cluster (topic group) share the same color
+- Adjust the **correlation threshold (θ) slider** to control edge density — slide right to show only the strongest relationships
+
+### 3. Inspect an Article
+
+Click any node to see in the right panel:
+
+- The article's top TF-IDF keywords
+- A list of its most closely related articles
+
+### 4. Get New Article Ideas
+
+The **Idea Panel** (bottom right) automatically surfaces:
+
+- **Association Gaps**: keyword pairs that frequently appear but have never been combined in a single article
+- **Sparse Clusters**: topic groups with few articles — areas with the most room to expand
+
+### 5. Save Your Analysis
+
+Export results as JSON to save your work. Reimport the JSON file to restore the analysis instantly (no re-fetching or re-processing needed). The browser also auto-saves to IndexedDB, so revisiting the same browser resumes from where you left off with incremental updates only.
+
+---
+
+## Configuration
+
+All key parameters are centralized in `src/config.ts`.
+
+| Parameter | Description | Default |
+|---|---|---|
+| `initialTheta` | Initial correlation threshold | `0.15` |
+| `knnLimit` | Maximum edges per article | `10` |
+| `topKeywords` | Keywords displayed per article | `10` |
+| `ctaMarkers` | Trigger phrases for CTA text removal | (pre-configured) |
+| `ideaTermUseCap` | Max appearances of any term in idea suggestions | `2` |
+
+---
+
+## Custom Dictionary (Compound Nouns)
+
+If proper nouns or brand names (e.g., "Monex Securities", "Bean to Bar") are being split into incorrect tokens, add them to the user dictionary.
+
+**Steps:**
+
+1. Add the term to `USER_DICTIONARY` in `src/nlp/userdict.ts` (exact spelling; spaces are stripped automatically)
+2. Increment `TOKENIZER_VERSION` in `src/nlp/tokenize.ts`
+
+Incrementing the version **automatically invalidates the IndexedDB cache** — all posts will be re-tokenized on the next analysis run. No manual cache clearing needed.
+
+---
+
+## Project Structure
+
 ```
 src/
-  ingest/  WP REST 取得
-  nlp/     clean(HTML/CTA除去) · tokenize(kuromoji) · tfidf
-  graph/   build(θ/kNN→graphology) · analyze(Louvain/中心性)
-  ideas/   engine(発散/収束提案)
-  store/   IndexedDBキャッシュ + JSON入出力
-  components/  Toolbar · CanvasGraph · SidePanel · IdeaPanel
-  pipeline.ts  取得→解析→グラフ→アイデアの束ね
+  ingest/       WordPress REST API fetcher
+  nlp/          clean (HTML/CTA removal) · tokenize (kuromoji) · tfidf
+  graph/        build (θ/kNN → graphology) · analyze (Louvain, centrality)
+  ideas/        engine (diverge/converge suggestions, diversity cap)
+  store/        IndexedDB cache + JSON import/export
+  components/   Toolbar · CanvasGraph · SidePanel · IdeaPanel
+  pipeline.ts   Orchestrates fetch → analyze → graph → ideas
+  config.ts     Single source of truth for all parameters
 ```
 
-## ユーザー辞書（固有名詞の分割対策）
-kuromoji.js(CDN版)は実行時のユーザー辞書ロードに未対応のため、**トークン列の最長一致マージ**で
-同等の効果を出している（`src/nlp/userdict.ts` の複合語を1トークンに再結合）。
-例: `銘柄`+`スカウター`→`銘柄スカウター`、`Bean to Bar`→`BeantoBar`、`マネックス`+`証券`→`マネックス証券`。
+---
 
-**辞書の増やし方**
-1. `src/nlp/userdict.ts` の `USER_DICTIONARY` に語を追加（表記どおりでよい。スペースは自動除去）。
-2. `src/nlp/tokenize.ts` の `TOKENIZER_VERSION` をインクリメント。
-   → これによりIndexedDBキャッシュが**自動的に無効化**され、次回「解析」で全記事が再トークン化される
-   （＝辞書変更が確実に反映される。手動キャッシュ削除は不要）。
+## Roadmap
 
-## アイデアの重複対策（多様性キャップ）
-連想ギャップ(G3)で `〔A〕×〔指数〕〔A〕×〔連動〕〔A〕×〔分配〕` のような重複が出るのを防ぐ。
-当初は「記事集合のJaccardで同義語を畳む」案を試したが、31記事規模では1記事に多テーマが同居するため
-**別物（株価とマネックス証券など）まで過剰マージ**した。co-occurrence では真の同義語を判定できない。
-そこで安全側に倒し、`src/ideas/engine.ts` で **各テーマ語の登場回数を上限(`CONFIG.ideaTermUseCap`)に制限**する
-多様性キャップ方式を採用。誤判定ゼロで重複だけを排除する。
+| Phase | Description | Trigger |
+|---|---|---|
+| Scale: data layer | Replace O(n²) pairwise computation with Approximate Nearest Neighbor (ANN) | 5,000+ posts |
+| Scale: rendering layer | Replace Cytoscape.js with Sigma.js (WebGL) | 1,000+ nodes |
+| Accuracy | Add tag co-occurrence as an additional correlation signal | When tag usage is consistent |
+| Synonym merging | Add a curated synonym dictionary (similar to userdict) | When over-splitting appears |
 
-## 将来の拡張
-- 5,000本超で全ペアO(n²)が重くなったら **近似最近傍(ANN)** に差し替え（データ層のみ）。
-- 1,000ノード超で描画が重くなったら **Sigma.js(WebGL)** に差し替え（描画層のみ）。
-- 真の同義語統合が必要なら、curatedな同義語リスト（userdict同様の手動辞書）を追加。
-- 記事にタグを付ける運用が始まればタグ共起シグナルを合成し精度をさらに強化。
+---
+
+## License
+
+MIT
+
+---
+
+*Built to solve a real problem with my own Japanese stock investment blog. Validated on live data.*
+*Designed with AI-assisted development (Claude Code).*
