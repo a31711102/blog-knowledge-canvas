@@ -21,10 +21,9 @@ WordPressブログの記事をREST APIで取得し、TF-IDFキーワード相関
 
 > 実際のブログ（`https://haitou-choco-nikki.com/`）で動作確認済み。
 
-```
-<img width="956" height="507" alt="image" src="https://github.com/user-attachments/assets/535ae5e3-8c3e-4fba-bdf5-090406480ee7" />
 
-```
+![screenshot](src/image/screenshot_blog-knowledge-campus_demo.png)
+
 
 ---
 
