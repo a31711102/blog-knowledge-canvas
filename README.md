@@ -21,9 +21,8 @@ Fetches all WordPress posts via REST API, analyzes keyword correlations using TF
 
 > Verified on a live blog: `https://haitou-choco-nikki.com/`
 
-```
-[Screenshots coming soon]
-```
+![screenshot](src/image/screenshot_blog-knowledge-campus_demo.png)
+
 
 ---
 
